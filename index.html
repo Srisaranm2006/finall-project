@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Hotel Booking — Dark UI (Frontend Only)</title>
+<style>
+  :root{
+    --bg:#0b0f12;
+    --panel:#0f1720;
+    --muted:#9aa6b2;
+    --accent:#7c3aed;
+    --accent-2:#06b6d4;
+    --glass: rgba(255,255,255,0.03);
+    --card-shadow: 0 6px 18px rgba(2,6,23,0.6);
+    --success:#16a34a;
+    --danger:#ef4444;
+    --radius:12px;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#071019);color:#e6eef6}
+  .app{max-width:1150px;margin:18px auto;padding:20px}
+  header{display:flex;gap:16px;align-items:center}
+  header h1{font-size:20px;margin:0;font-weight:600}
+  .top-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .btn{background:linear-gradient(90deg,var(--accent),var(--accent-2));border:none;color:#fff;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600;box-shadow: 0 6px 18px rgba(124,58,237,0.18)}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);box-shadow:none}
+  .btn.danger{background:linear-gradient(90deg,#f43f5e,#ef4444)}
+  .panel{background:linear-gradient(180deg,var(--panel), rgba(255,255,255,0.02));border-radius:var(--radius);padding:16px;box-shadow:var(--card-shadow);margin-top:16px}
+  .grid{display:grid;grid-template-columns:1fr 360px;gap:18px}
+  .rooms-list{display:grid;gap:12px}
+  .room-card{background:var(--glass);padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);display:flex;gap:12px;align-items:center}
+  .room-meta{flex:1}
+  .room-title{font-weight:700;margin:0}
+  .room-desc{color:var(--muted);font-size:13px;margin:4px 0}
+  .room-foot{display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .muted{color:var(--muted);font-size:13px}
+  label{display:block;color:var(--muted);font-size:13px;margin-top:8px}
+  input,select,textarea{width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#e6eef6;outline:none}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{padding:8px;border-bottom:1px dashed rgba(255,255,255,0.03);text-align:left;font-size:13px}
+  .small{font-size:12px;color:var(--muted)}
+  .center{display:flex;align-items:center;gap:8px}
+  .flex{display:flex;gap:8px}
+  .search{display:flex;gap:8px;margin-top:8px}
+  .tabs{display:flex;gap:8px;margin-top:12px}
+  .tab{padding:8px 12px;border-radius:10px;cursor:pointer;background:transparent;border:1px solid rgba(255,255,255,0.02)}
+  .tab.active{background:linear-gradient(90deg, rgba(124,58,237,0.16), rgba(6,182,212,0.08));box-shadow:0 6px 20px rgba(2,6,23,0.5);border:1px solid rgba(124,58,237,0.22)}
+  .footer-note{color:var(--muted);font-size:12px;margin-top:10px}
+  /* responsive */
+  @media (max-width:960px){ .grid{grid-template-columns:1fr} .top-actions{flex-wrap:wrap} .panel{padding:12px}}
+  /* toast */
+  .toast{position:fixed;right:18px;bottom:18px;background:#091018;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Hotel Booking — Dark UI (Frontend)</h1>
+      <div class="small">LocalStorage-powered demo — works with Go Live. No backend.</div>
+    </div>
+
+    <div class="top-actions">
+      <button id="btnSwitchView" class="btn ghost">Admin Panel</button>
+      <button id="btnExport" class="btn ghost">Export JSON</button>
+      <button id="btnClear" class="btn ghost">Reset Data</button>
+    </div>
+  </header>
+
+  <div id="mainView" class="panel">
+    <div class="grid">
+      <div>
+        <div class="center" style="justify-content:space-between">
+          <div>
+            <div class="small">Search / Filter</div>
+            <div class="search">
+              <input id="searchInput" placeholder="Search rooms by name or type..." />
+              <select id="filterType"><option value="">All types</option></select>
+            </div>
+          </div>
+
+          <div style="min-width:260px">
+            <div class="small">Quick book</div>
+            <div style="display:flex;gap:8px">
+              <select id="quickRoom"></select>
+              <button id="quickBtn" class="btn">Book</button>
+            </div>
+            <div class="small" style="margin-top:6px;color:var(--muted)">Click Quick Book to open booking modal for selected room.</div>
+          </div>
+        </div>
+
+        <div class="tabs" id="mainTabs">
+          <div class="tab active" data-tab="roomsTab">Rooms</div>
+          <div class="tab" data-tab="facTab">Facilities</div>
+          <div class="tab" data-tab="historyTab">My Bookings</div>
+        </div>
+
+        <div id="roomsTab" style="margin-top:12px">
+          <div class="rooms-list" id="roomsList"></div>
+          <div class="footer-note">Tip: Use Admin Panel to add/edit room units and descriptions.</div>
+        </div>
+
+        <div id="facTab" class="hidden" style="margin-top:12px">
+          <div class="panel" style="padding:12px">
+            <h3 style="margin:0">Facilities</h3>
+            <div class="small">Book facility slots (local demo). Capacity checks enforced.</div>
+            <div style="margin-top:12px;display:grid;gap:10px">
+              <div class="room-card">
+                <div class="room-meta">
+                  <div class="room-title">Swimming Pool</div>
+                  <div class="room-desc">Open 07:00 - 21:00 — Capacity per slot: <span id="poolCap"></span></div>
+                  <div style="margin-top:8px;display:flex;gap:8px">
+                    <select id="poolSlot">
+                      <option>07:00-08:00</option><option>08:00-09:00</option><option>09:00-10:00</option><option>18:00-19:00</option>
+                    </select>
+                    <input id="poolDate" type="date" />
+                    <button class="btn" id="poolBook">Book</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="room-card">
+                <div class="room-meta">
+                  <div class="room-title">Gym</div>
+                  <div class="room-desc">24/7 — Capacity per slot: <span id="gymCap"></span></div>
+                  <div style="margin-top:8px;display:flex;gap:8px">
+                    <select id="gymSlot">
+                      <option>06:00-07:00</option><option>07:00-08:00</option><option>17:00-18:00</option><option>18:00-19:00</option>
+                    </select>
+                    <input id="gymDate" type="date" />
+                    <button class="btn" id="gymBook">Book</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="room-card">
+                <div class="room-meta">
+                  <div class="room-title">Restaurant Reservation</div>
+                  <div class="room-desc">Reserve table — Capacity per slot: <span id="restCap"></span></div>
+                  <div style="margin-top:8px;display:flex;gap:8px">
+                    <select id="restSlot">
+                      <option>12:00</option><option>13:00</option><option>19:00</option><option>20:00</option>
+                    </select>
+                    <input id="restDate" type="date" />
+                    <button class="btn" id="restBook">Reserve</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="historyTab" class="hidden" style="margin-top:12px">
+          <h3>My Bookings</h3>
+          <div id="myBookingsWrap"></div>
+        </div>
+      </div>
+
+      <aside>
+        <div style="position:sticky;top:18px">
+          <div class="panel">
+            <h3 style="margin:0">Book a Room</h3>
+            <div class="small">Complete fields and click Confirm Booking</div>
+            <form id="bookingForm" style="margin-top:10px">
+              <label>Your name<input id="fName" required /></label>
+              <label>Email<input id="fEmail" type="email" required /></label>
+              <label>Room<select id="fRoom"></select></label>
+              <label>Check-in<input id="fIn" type="date" required /></label>
+              <label>Check-out<input id="fOut" type="date" required /></label>
+              <label>Guests<input id="fGuests" type="number" min="1" value="1" /></label>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn" id="confirmBooking" type="button">Confirm Booking</button>
+                <button class="btn ghost" id="clearForm" type="button">Clear</button>
+              </div>
+            </form>
+            <div id="bookMsg" class="small" style="margin-top:8px;color:var(--muted)"></div>
+          </div>
+
+          <div class="panel" style="margin-top:12px">
+            <h3 style="margin:0">Quick Stats</h3>
+            <div class="small" id="statsRooms"></div>
+            <div class="small" id="statsBookings" style="margin-top:6px"></div>
+            <div class="small" style="margin-top:6px">LocalStorage key: <code>hotel_data_v1</code></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Admin Panel (hidden UI) -->
+  <div id="adminPanel" class="panel hidden">
+    <div style="display:flex;gap:12px;align-items:center;justify-content:space-between">
+      <div>
+        <h2 style="margin:0">Admin Panel</h2>
+        <div class="small">Fake admin login — password protected locally</div>
+      </div>
+      <div>
+        <button class="btn ghost" id="adminBack">Back</button>
+        <button class="btn danger" id="adminLogout" style="display:none">Logout</button>
+      </div>
+    </div>
+
+    <div id="adminLoginWrap" style="margin-top:12px">
+      <div style="display:flex;gap:12px;align-items:center">
+        <input id="adminPwd" placeholder="Enter admin password" type="password" />
+        <button class="btn" id="adminLoginBtn">Login</button>
+        <div class="small" style="margin-left:8px">Default password: <code>admin123</code></div>
+      </div>
+    </div>
+
+    <div id="adminUI" class="hidden" style="margin-top:16px">
+      <div style="display:flex;gap:12px">
+        <div style="flex:1">
+          <div class="panel">
+            <h3 style="margin:0">Rooms — Add / Edit</h3>
+            <form id="roomForm" style="margin-top:8px">
+              <input id="rId" type="hidden" />
+              <label>Room name<input id="rName" /></label>
+              <label>Type<input id="rType" /></label>
+              <label>Price<input id="rPrice" type="number" step="0.01" /></label>
+              <label>Units<input id="rUnits" type="number" min="1" /></label>
+              <label>Description<textarea id="rDesc"></textarea></label>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn" id="saveRoom" type="button">Save Room</button>
+                <button class="btn ghost" id="newRoom">New</button>
+              </div>
+              <div id="roomMsg" class="small" style="margin-top:8px;color:var(--muted)"></div>
+            </form>
+          </div>
+
+          <div class="panel" style="margin-top:12px">
+            <h3 style="margin:0">Bookings</h3>
+            <div id="adminBookings"></div>
+          </div>
+        </div>
+
+        <div style="width:320px">
+          <div class="panel">
+            <h3 style="margin:0">Facility Settings</h3>
+            <label>Pool capacity per slot<input id="setPoolCap" type="number" min="1" /></label>
+            <label>Gym capacity per slot<input id="setGymCap" type="number" min="1" /></label>
+            <label>Restaurant capacity per slot<input id="setRestCap" type="number" min="1" /></label>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn" id="saveFac">Save</button>
+              <button class="btn ghost" id="resetFac">Reset</button>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top:12px">
+            <h3 style="margin:0">Data</h3>
+            <button class="btn ghost" id="importBtn">Import JSON</button>
+            <input id="importArea" class="hidden" type="file" accept=".json" />
+            <div class="small" style="margin-top:8px">Use Export/Import to backup local data.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastWrap"></div>
+</div>
+
+<script>
+/* ========= Single-file app logic =========
+   - Data stored in localStorage under key 'hotel_data_v1'
+   - Data model:
+     { rooms:[], bookings:[], facilities: { pool:{cap}, gym:{cap}, rest:{cap} } }
+*/
+
+// --- Utilities
+const LS_KEY = 'hotel_data_v1';
+const defaultData = {
+  rooms: [
+    {id: genId(), name:'Standard Single', type:'Single', price:1200, units:3, desc:'Cozy single bed, free Wi-Fi.'},
+    {id: genId(), name:'Double Deluxe', type:'Double', price:2800, units:2, desc:'Spacious room with king bed.'},
+    {id: genId(), name:'Suite Premium', type:'Suite', price:5200, units:1, desc:'Suite with living area and view.'}
+  ],
+  bookings: [],
+  facilities: { pool:{cap:6}, gym:{cap:8}, rest:{cap:10} }
+};
+
+function genId(){ return 'id_' + Math.random().toString(36).slice(2,9) }
+function loadData(){
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) { localStorage.setItem(LS_KEY, JSON.stringify(defaultData)); return JSON.parse(JSON.stringify(defaultData)); }
+    return JSON.parse(raw);
+  } catch(e){ localStorage.removeItem(LS_KEY); localStorage.setItem(LS_KEY, JSON.stringify(defaultData)); return JSON.parse(JSON.stringify(defaultData)); }
+}
+function saveData(d){ localStorage.setItem(LS_KEY, JSON.stringify(d)); }
+function toast(msg, color){ const t = document.createElement('div'); t.className='toast'; t.style.borderColor = color || 'rgba(255,255,255,0.04)'; t.textContent = msg; document.getElementById('toastWrap').appendChild(t); setTimeout(()=>t.remove(),3000); }
+
+// --- App state
+let DATA = loadData();
+let ADMIN_LOGGED = false;
+
+// --- DOM refs
+const roomsList = document.getElementById('roomsList');
+const filterType = document.getElementById('filterType');
+const searchInput = document.getElementById('searchInput');
+const quickRoom = document.getElementById('quickRoom');
+const fRoom = document.getElementById('fRoom');
+const confirmBookingBtn = document.getElementById('confirmBooking');
+const bookMsg = document.getElementById('bookMsg');
+const myBookingsWrap = document.getElementById('myBookingsWrap');
+const statsRooms = document.getElementById('statsRooms');
+const statsBookings = document.getElementById('statsBookings');
+const poolCap = document.getElementById('poolCap');
+const gymCap = document.getElementById('gymCap');
+const restCap = document.getElementById('restCap');
+
+// admin refs
+const adminPanel = document.getElementById('adminPanel');
+const adminLoginWrap = document.getElementById('adminLoginWrap');
+const adminUI = document.getElementById('adminUI');
+const adminPwd = document.getElementById('adminPwd');
+const adminLoginBtn = document.getElementById('adminLoginBtn');
+const adminBookings = document.getElementById('adminBookings');
+const rId = document.getElementById('rId');
+const rName = document.getElementById('rName');
+const rType = document.getElementById('rType');
+const rPrice = document.getElementById('rPrice');
+const rUnits = document.getElementById('rUnits');
+const rDesc = document.getElementById('rDesc');
+const saveRoom = document.getElementById('saveRoom');
+const newRoom = document.getElementById('newRoom');
+const setPoolCap = document.getElementById('setPoolCap');
+const setGymCap = document.getElementById('setGymCap');
+const setRestCap = document.getElementById('setRestCap');
+const saveFac = document.getElementById('saveFac');
+const adminBack = document.getElementById('adminBack');
+const adminLogout = document.getElementById('adminLogout');
+const adminLoginBtnEl = document.getElementById('adminLoginBtn');
+
+// global buttons
+document.getElementById('btnSwitchView').addEventListener('click', ()=>{ showAdminPanel(true) });
+document.getElementById('btnExport').addEventListener('click', exportJSON);
+document.getElementById('btnClear').addEventListener('click', ()=>{ if(confirm('Reset all local data?')){ localStorage.removeItem(LS_KEY); DATA = loadData(); renderAll(); toast('Data reset'); } });
+
+document.getElementById('quickBtn').addEventListener('click', ()=>{ const rid = quickRoom.value; openBookingModalFor(rid) });
+document.getElementById('clearForm').addEventListener('click', clearForm);
+
+document.getElementById('poolBook').addEventListener('click', ()=>bookFacility('pool'));
+document.getElementById('gymBook').addEventListener('click', ()=>bookFacility('gym'));
+document.getElementById('restBook').addEventListener('click', ()=>bookFacility('rest'));
+
+document.getElementById('adminLoginBtn').addEventListener('click', doAdminLogin);
+adminBack.addEventListener('click', ()=>{ showAdminPanel(false) });
+adminLogout.addEventListener('click', ()=>{ ADMIN_LOGGED=false; showAdminPanel(true); toast('Admin logged out') });
+
+saveRoom.addEventListener('click', saveRoomHandler);
+newRoom.addEventListener('click', ()=>{ rId.value=''; rName.value=''; rType.value=''; rPrice.value=''; rUnits.value=1; rDesc.value=''; });
+
+saveFac.addEventListener('click', ()=>{ DATA.facilities.pool.cap = Math.max(1, parseInt(setPoolCap.value||1)); DATA.facilities.gym.cap = Math.max(1, parseInt(setGymCap.value||1)); DATA.facilities.rest.cap = Math.max(1, parseInt(setRestCap.value||1)); saveData(DATA); renderAll(); toast('Facility settings saved') });
+
+document.getElementById('importBtn').addEventListener('click', ()=>document.getElementById('importArea').click());
+document.getElementById('importArea').addEventListener('change', (e)=>{ const f = e.target.files[0]; if(!f) return; const r = new FileReader(); r.onload = ()=>{ try{ const parsed = JSON.parse(r.result); localStorage.setItem(LS_KEY, JSON.stringify(parsed)); DATA = loadData(); renderAll(); toast('Imported data'); }catch(err){ alert('Invalid JSON file') } }; r.readAsText(f) });
+
+// search/filter events
+searchInput.addEventListener('input', renderRooms);
+filterType.addEventListener('change', renderRooms);
+
+// booking form
+confirmBookingBtn.addEventListener('click', handleBooking);
+
+// init tabs
+document.getElementById('mainTabs').addEventListener('click', (ev)=>{ const t = ev.target.closest('.tab'); if(!t) return; document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); t.classList.add('active'); document.querySelectorAll('#roomsTab,#facTab,#historyTab').forEach(el=>el.classList.add('hidden')); document.getElementById(t.dataset.tab).classList.remove('hidden'); });
+
+// initial render
+renderAll();
+
+// ====== functions ======
+
+function renderAll(){
+  populateFilters();
+  renderRooms();
+  populateQuickAndForm();
+  renderStats();
+  renderMyBookings();
+  renderFacilityCaps();
+  renderAdminBookings();
+}
+
+function populateFilters(){
+  const types = Array.from(new Set(DATA.rooms.map(r=>r.type)));
+  filterType.innerHTML = '<option value="">All types</option>' + types.map(t=>`<option value="${t}">${t}</option>`).join('');
+}
+function renderRooms(){
+  const q = searchInput.value.toLowerCase();
+  const tfilter = filterType.value;
+  roomsList.innerHTML = '';
+  const filtered = DATA.rooms.filter(r=>{
+    if(tfilter && r.type !== tfilter) return false;
+    if(!q) return true;
+    return r.name.toLowerCase().includes(q) || (r.type||'').toLowerCase().includes(q) || (r.desc||'').toLowerCase().includes(q);
+  });
+  if(filtered.length===0){ roomsList.innerHTML = '<div class="card small">No rooms found.</div>'; return; }
+  filtered.forEach(r=>{
+    const el = document.createElement('div'); el.className='room-card';
+    el.innerHTML = `<div style="width:64px;height:64px;border-radius:8px;background:linear-gradient(120deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));display:flex;align-items:center;justify-content:center;font-weight:700">${r.type[0]||'R'}</div>
+      <div class="room-meta">
+        <div class="room-title">${escapeHtml(r.name)}</div>
+        <div class="room-desc">${escapeHtml(r.desc||'')}</div>
+        <div class="room-foot">
+          <div class="small">₹${Number(r.price).toFixed(2)} / night • Units: ${r.units}</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn ghost" onclick="openBookingModalFor('${r.id}')">Book</button>
+            <button class="btn" onclick="openRoomDetails('${r.id}')">Details</button>
+          </div>
+        </div>
+      </div>`;
+    roomsList.appendChild(el);
+  });
+}
+
+function populateQuickAndForm(){
+  quickRoom.innerHTML = ''; fRoom.innerHTML = '';
+  DATA.rooms.forEach(r=>{
+    quickRoom.innerHTML += `<option value="${r.id}">${r.name} — ₹${Number(r.price).toFixed(2)}</option>`;
+    fRoom.innerHTML += `<option value="${r.id}">${r.name}</option>`;
+  });
+}
+
+function renderStats(){
+  statsRooms.textContent = `Rooms configured: ${DATA.rooms.length}`;
+  statsBookings.textContent = `Total bookings: ${DATA.bookings.length}`;
+}
+
+function renderMyBookings(){
+  const me = localStorage.getItem('hotel_demo_user') || '';
+  const list = DATA.bookings.filter(b=>b.email === me);
+  let html = '';
+  if(list.length===0) html = '<div class="card small">No bookings under your email. Use booking form to create one.</div>';
+  else {
+    html = '<table><tr><th>ID</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Guests</th><th>Action</th></tr>';
+    list.forEach(b=>{
+      const room = DATA.rooms.find(r=>r.id===b.roomId) || {name:'(deleted)'};
+      html += `<tr><td>${b.id}</td><td>${escapeHtml(room.name)}</td><td>${b.checkin}</td><td>${b.checkout}</td><td>${b.guests}</td><td><button class="btn ghost" onclick="cancelBooking('${b.id}','${b.email}')">Cancel</button></td></tr>`;
+    });
+    html += '</table>';
+  }
+  myBookingsWrap.innerHTML = html;
+}
+
+function renderFacilityCaps(){
+  poolCap.textContent = DATA.facilities.pool.cap;
+  gymCap.textContent = DATA.facilities.gym.cap;
+  restCap.textContent = DATA.facilities.rest.cap;
+  setPoolCap.value = DATA.facilities.pool.cap;
+  setGymCap.value = DATA.facilities.gym.cap;
+  setRestCap.value = DATA.facilities.rest.cap;
+}
+
+function openBookingModalFor(roomId){
+  // open panel scroll and auto-fill
+  document.getElementById('fRoom').value = roomId;
+  document.getElementById('fIn').value = '';
+  document.getElementById('fOut').value = '';
+  document.getElementById('fName').focus();
+  toast('Booking form filled for selected room (frontend modal simulated)');
+}
+
+function openRoomDetails(id){
+  const r = DATA.rooms.find(x=>x.id===id);
+  if(!r) return toast('Room not found', 'red');
+  alert(`Room: ${r.name}\nType: ${r.type}\nPrice: ₹${r.price}\nUnits: ${r.units}\n\nDescription:\n${r.desc||'(none)'}`);
+}
+
+// --- booking logic (local)
+function handleBooking(){
+  const name = document.getElementById('fName').value.trim();
+  const email = document.getElementById('fEmail').value.trim();
+  const roomId = document.getElementById('fRoom').value;
+  const checkin = document.getElementById('fIn').value;
+  const checkout = document.getElementById('fOut').value;
+  const guests = parseInt(document.getElementById('fGuests').value || 1);
+
+  if(!name || !email || !roomId || !checkin || !checkout){ bookMsg.textContent='Please fill all fields'; return; }
+  if(checkout <= checkin){ bookMsg.textContent='Check-out must be after check-in'; return; }
+
+  // availability: count overlapping bookings vs units
+  const room = DATA.rooms.find(r=>r.id===roomId);
+  if(!room){ bookMsg.textContent='Selected room no longer exists'; return; }
+  const overlapping = DATA.bookings.filter(b => b.roomId===roomId && !(b.checkout <= checkin || b.checkin >= checkout)).length;
+  if(overlapping >= room.units){ bookMsg.textContent='No availability for selected dates'; return; }
+
+  const bid = genId();
+  const booking = { id: bid, roomId, name, email, checkin, checkout, guests, createdAt: new Date().toISOString() };
+  DATA.bookings.push(booking);
+  saveData(DATA);
+  localStorage.setItem('hotel_demo_user', email); // remember user email for "My Bookings"
+  bookMsg.textContent = 'Booking confirmed — saved locally';
+  renderAll();
+  toast('Booking saved locally');
+  // clear minimal fields
+  document.getElementById('fIn').value=''; document.getElementById('fOut').value='';
+}
+
+function cancelBooking(id, email){
+  if(!confirm('Cancel booking?')) return;
+  const idx = DATA.bookings.findIndex(b=>b.id===id);
+  if(idx===-1) return toast('Booking not found');
+  DATA.bookings.splice(idx,1);
+  saveData(DATA);
+  renderAll();
+  toast('Booking cancelled');
+}
+
+// facilities booking
+function bookFacility(fac){
+  const slot = document.getElementById(fac + 'Slot').value;
+  const date = document.getElementById(fac + 'Date').value;
+  const email = localStorage.getItem('hotel_demo_user') || prompt('Enter your email to save booking:');
+  if(!email){ toast('Email required'); return; }
+  const cap = DATA.facilities[fac].cap;
+  // count bookings for same date+slot
+  const used = DATA.bookings.filter(b=>b.facility===fac && b.slot===slot && b.date===date).length;
+  if(used >= cap){ toast('Selected slot full'); return; }
+  const bid = genId();
+  DATA.bookings.push({ id:bid, facility:fac, slot, date, email, name: email, createdAt: new Date().toISOString() });
+  saveData(DATA);
+  localStorage.setItem('hotel_demo_user', email);
+  renderAll();
+  toast('Facility booked (local)');
+}
+
+// export/import
+function exportJSON(){
+  const dataStr = JSON.stringify(DATA, null, 2);
+  const blob = new Blob([dataStr], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'hotel_data_export.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// admin panel
+function showAdminPanel(show){
+  document.getElementById('mainView').classList.toggle('hidden', show);
+  adminPanel.classList.toggle('hidden', !show);
+  if(show){ adminPwd.value=''; adminLoginWrap.style.display='block'; adminUI.classList.add('hidden'); adminLogout.style.display='none'; }
+}
+
+function doAdminLogin(){
+  const pwd = adminPwd.value;
+  // simple local password
+  if(pwd === 'admin123'){ ADMIN_LOGGED = true; adminLoginWrap.style.display='none'; adminUI.classList.remove('hidden'); adminLogout.style.display='inline-block'; renderAdminBookings(); toast('Admin logged in'); }
+  else { alert('Invalid admin password'); }
+}
+
+function renderAdminBookings(){
+  // reuse render
+  renderAdminBookings = renderAdminBookingsImpl; // allow re-def
+  renderAdminBookingsImpl();
+}
+function renderAdminBookingsImpl(){
+  if(!ADMIN_LOGGED) return;
+  // Room management list
+  const roomsHtml = DATA.rooms.map(r=>`<tr><td>${r.id}</td><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.type)}</td><td>₹${Number(r.price).toFixed(2)}</td><td>${r.units}</td><td>
+    <button class="btn ghost" onclick='editRoom("${r.id}")'>Edit</button>
+    <button class="btn danger" onclick='deleteRoom("${r.id}")'>Delete</button>
+  </td></tr>`).join('');
+  // bookings table
+  const bks = DATA.bookings.slice().reverse().map(b=>{
+    if(b.roomId){
+      const room = DATA.rooms.find(r=>r.id===b.roomId) || {name:'(deleted)'};
+      return `<tr><td>${b.id}</td><td>${escapeHtml(b.name)}</td><td>${escapeHtml(b.email)}</td><td>${escapeHtml(room.name)}</td><td>${b.checkin||''}</td><td>${b.checkout||''}</td><td>${b.guests||''}</td><td>${new Date(b.createdAt).toLocaleString()}</td><td>
+        <button class="btn ghost" onclick='adminDeleteBooking("${b.id}")'>Delete</button>
+      </td></tr>`;
+    } else {
+      // facility booking
+      return `<tr><td>${b.id}</td><td>${escapeHtml(b.name||b.email)}</td><td>${escapeHtml(b.email)}</td><td>Facility: ${escapeHtml(b.facility)}</td><td>${b.date||''}</td><td>${b.slot||''}</td><td>-</td><td>${new Date(b.createdAt).toLocaleString()}</td><td><button class="btn ghost" onclick='adminDeleteBooking("${b.id}")'>Delete</button></td></tr>`;
+    }
+  }).join('');
+  adminBookings.innerHTML = `
+    <h4>Rooms</h4>
+    <table><tr><th>ID</th><th>Name</th><th>Type</th><th>Price</th><th>Units</th><th>Action</th></tr>${roomsHtml}</table>
+    <h4 style="margin-top:12px">Bookings</h4>
+    <table><tr><th>ID</th><th>Name</th><th>Email</th><th>Room/Facility</th><th>From</th><th>To/Slot</th><th>Guests</th><th>Created</th><th>Action</th></tr>${bks}</table>
+  `;
+  renderStats();
+}
+
+function editRoom(id){
+  const r = DATA.rooms.find(x=>x.id===id);
+  if(!r) return toast('Room not found');
+  rId.value = r.id; rName.value = r.name; rType.value = r.type; rPrice.value = r.price; rUnits.value = r.units; rDesc.value = r.desc;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function deleteRoom(id){
+  if(!confirm('Delete room and related bookings?')) return;
+  DATA.rooms = DATA.rooms.filter(r=>r.id!==id);
+  DATA.bookings = DATA.bookings.filter(b=>b.roomId!==id);
+  saveData(DATA);
+  renderAll();
+  renderAdminBookings();
+  toast('Room deleted');
+}
+
+function saveRoomHandler(){
+  const id = rId.value;
+  const name = rName.value.trim(); const type = rType.value.trim(); const price = parseFloat(rPrice.value||0); const units = parseInt(rUnits.value||1); const desc = rDesc.value.trim();
+  if(!name || !type){ alert('Name & type required'); return; }
+  if(id){
+    const r = DATA.rooms.find(x=>x.id===id);
+    if(!r) return toast('Room not found');
+    r.name = name; r.type = type; r.price = price; r.units = Math.max(1,units); r.desc = desc;
+  } else {
+    DATA.rooms.push({ id: genId(), name, type, price, units: Math.max(1,units), desc });
+  }
+  saveData(DATA);
+  rId.value=''; rName.value=''; rType.value=''; rPrice.value=''; rUnits.value=1; rDesc.value='';
+  renderAll();
+  renderAdminBookings();
+  toast('Room saved');
+}
+
+function adminDeleteBooking(id){
+  if(!confirm('Delete booking?')) return;
+  DATA.bookings = DATA.bookings.filter(b=>b.id!==id);
+  saveData(DATA);
+  renderAll();
+  renderAdminBookings();
+  toast('Booking removed');
+}
+
+// admin login state show/hide
+function showAdminPanelInit(){
+  if(ADMIN_LOGGED){ adminLoginWrap.style.display='none'; adminUI.classList.remove('hidden'); adminLogout.style.display='inline-block'; renderAdminBookings(); }
+  else { adminLoginWrap.style.display='block'; adminUI.classList.add('hidden'); adminLogout.style.display='none'; }
+}
+setInterval(showAdminPanelInit,1000);
+
+// guest helpers
+function clearForm(){ document.getElementById('bookingForm').reset(); bookMsg.textContent=''; }
+
+// misc
+function escapeHtml(s){ if(!s && s!==0) return ''; return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// helper to export current DATA quickly when admin logged in
+function exportJSON(){ const a = document.createElement('a'); a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(DATA, null, 2)); a.download = 'hotel_data_export.json'; a.click(); }
+
+// initial setup call right away
+renderAll();
+
+// Expose some admin functions for inline onclicks
+window.openBookingModalFor = openBookingModalFor;
+window.openRoomDetails = openRoomDetails;
+window.editRoom = editRoom;
+window.deleteRoom = deleteRoom;
+window.adminDeleteBooking = adminDeleteBooking;
+
+</script>
+</body>
+</html>
